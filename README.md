@@ -1,6 +1,6 @@
 # Freq. Finder Setup 
 
-Version: 251022.1200
+Version: 251031.1600 From Branch: Issue2-Dates
 
 This guide provides quick instructions for running the pre-release Windows version(s) of Freq.Finder
 
