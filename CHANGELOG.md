@@ -1,5 +1,32 @@
 ## Changelog
 
+- 2026 02 18 (v260218.1000clean)
+  - Migration Cleanup & Test Suite
+    - **Bug Fix (Cellular County Search)**: Fixed case-sensitive `LIKE` → `ILIKE` in `data_access.py` for cellular county queries. In DuckDB, `LIKE` is case-sensitive (unlike SQLite), so searching "fairfax" would miss "FAIRFAX".
+    - **Bug Fix (NaN Coordinates)**: Fixed `dms_to_dd()` in `utils.py` to return 0.0 for NaN inputs instead of propagating NaN through coordinate calculations.
+    - **Bug Fix (SDR++ Export)**: Fixed `generate_sdrpp_json()` to skip NaN frequencies instead of creating invalid bookmarks.
+    - **Connection Leak Prevention**: Wrapped all DuckDB query functions and the license detail route in `try/finally conn.close()` to prevent connection leaks on errors.
+    - **Dependency Cleanup**: Removed unused `SQLAlchemy` from `requirements.txt`, added `pytest`.
+    - **Test Suite**: Built comprehensive pytest suite (53 tests) covering query logic, utils, exporters, and Flask routes.
+    - **Housekeeping**: Archived old SQLite files (`data_access_sqlite.py`, `build_database.py`, etc.) to `archive/` folder.
+
+- 2026 02 18 (v260218.0927fix)
+  - DuckDB Migration & Stability Fixes
+    - **Database Build Repair**: Fixed a critical bug in `build_db_duck.py` where 5 tables (`PUBACC_AN`, `PUBACC_CO`, `PUBACC_CP`, `PUBACC_LM`, `PUBACC_SF`) were silently dropped due to strict CSV parsing errors. Added `strict_mode=false` to restore data integrity.
+    - **License Detail Crash Fix**: Resolved a 500 error in the license detail route caused by DuckDB returning tuples instead of dict-like Row objects. Switched to `fetchdf().to_dict()` conversion.
+    - **Defensive Error Handling**: Added try/except wrappers to optional database queries (Control Points, History) so the detail page renders even if specific tables are missing.
+    - **UI/Map Refinement**: Sanitized `None` and `NaN` display in map popups and license detail templates, ensuring microwave sites without frequency records display "N/A" or "—" gracefully.
+
+- 2026 02 17 (v260217.2020fix)
+  - Microwave & LMR Query Fixes
+    - **Subquery Refactoring**: Fixed a bug where LMR-only results were over-filtered when "add microwave" was selected with the default ("Any") class.
+    - **Case-Insensitive Matching**: Switched to `ILIKE` for licensee and county matching in DuckDB to prevent data loss due to casing mismatches.
+    - **Improved Visibility**: Added `radio_service_code` to result sets to assist in differentiating LMR and Microwave records.
+  - Verification & Stability
+    - Enhanced reproduction scripts to provide detailed metrics and service code breakdowns.
+    - Verified all 8 existing unit tests pass with the new query logic.
+
+
 - 2026 02 15 (v260215.1200)
   - Documentation & UI
     - Refreshed the **Instructions** page with detailed explanations for recent features (DuckDB, Data Currency).
