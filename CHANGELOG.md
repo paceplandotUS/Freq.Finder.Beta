@@ -1,5 +1,40 @@
 ## Changelog
 
+- 2026 06 13 (v260613.2040)
+  - Distribution & Build
+    - **Automated cross-platform builds.** Windows and macOS desktop bundles are now built automatically on GitHub-hosted runners (`.github/workflows/build.yml`) when a `release-vYYMMDD.HHMM` tag is pushed (or via the Actions "Run workflow" button), and published as a public Release on the **Freq.Finder.Beta** repository. Replaces the manual per-platform PyInstaller-and-upload process.
+    - **Downloads moved to the Releases page.** Users now download from <https://github.com/paceplandotUS/Freq.Finder.Beta/releases> (assets `FreqFinder-Windows-x64.zip` / `FreqFinder-macOS.zip`) instead of committed ZIPs in the repo file list. WELCOME and README updated accordingly.
+
+- 2026 06 13 (v260613.1925)
+  - Clear-Channel Finder (new feature)
+    - **Find a Clear Channel**: Inverts interference analysis. Drop a **station pin** on the map and set a **search radius** (or draw a circle/polygon for an area search), pick one or more candidate channel pools from the **Frequency Group** dropdown, and the tool ranks the channels **cleanest → dirtiest at that location** (CLEAR / CAUTION / AVOID), each row expandable to the offending licensees (call sign, type, distance/bearing from your pin, ERP, predicted level) with matching colored markers on the map and a KML export. Answers the question an incident-comms officer actually has: *which channel can I use here, right now?* The search radius is independent of any operating area, so a distant high-power transmitter that could still reach you isn't missed.
+    - **Two tiers**: **Tier 1** (default) is a fast distance/power screen using a free-space / two-ray (plane-earth) path-loss proxy — no terrain lookup, instant. **Tier 2** ("Precise (terrain-aware)") runs the coverage engine's Longley-Rice model *in reverse* (interferer → pin) for the median field strength at the location, with NLCD clutter — so an interferer behind a ridge scores far lower than one with line-of-sight.
+    - **TSB-88 grounding**: Both tiers compute a **C/(N+I)** margin against the **TIA TSB-88** co-channel / adjacent **protection ratio** for the selected technology (analog FM / P25 / DMR, default FM), over a thermal + ITU-R P.372 man-made noise floor. Channel bandwidths follow FCC narrowbanding (11 kHz FM / 8.1 kHz P25 / 7.6 kHz DMR). Self-exclusion by FRN; harmonics shown for awareness but excluded from the verdict; mobile (area) licenses scored at worst-case closest approach and flagged. New `POST /clear-channel` route + `/clear-channel-kml` export. Documented as a planning aid, not a substitute for a full TSB-88 study.
+    - Implementation: factored the per-frequency interference-set builder out of `query_builder` (`build_interference_set_for_freq`, now with an exact co-channel criterion), a single batched spatial query (`data_access.find_clear_channel_interferers`), a new `clear_channel.py` scoring module, and a new collapsible UI panel reusing the map's draw tools and the coverage map-injection pattern.
+  - Fixes
+    - **Radius / circle searches used a swapped coordinate order.** DuckDB's `ST_Distance_Spheroid` expects `POINT(latitude longitude)`, but the circle-search SQL passed longitude first, so every pin-radius (circle) search filtered by a geographically wrong distance. Corrected in both the LMR/microwave and cellular search paths — circle searches now return the correct set.
+
+- 2026 06 13 (v260613.1511)
+  - Test Sites — Faithful Cloning with Exact Antenna Parameters
+    - **Clone Now Clones the Whole Site**: Cloning a licensed site into a Test Site previously dropped the real antenna data, defaulting to 30 m AGL / 50 W / omni. It now pulls the actual antenna height, ERP, azimuth, beamwidth, and gain from the FCC AN/RA records (via a new `/api/site-coverage-params` lookup) and populates them exactly. Fixed the map-popup clone, which also wasn't passing the site's location number.
+    - **Exact Beamwidth & Gain**: The Test Site model now stores an explicit beamwidth and gain (new form fields + a "Custom (exact)" pattern option), so a directional site clones at its true beamwidth (e.g., 90°) instead of snapping to the nearest preset. Presets still auto-fill the fields for quick manual entry; existing saved sites remain fully compatible.
+  - RF Coverage — Talk-In / Two-Way Modeling
+    - **Talk-In (Uplink) Coverage**: New "Model talk-in (two-way)" option computes the subscriber→base uplink alongside the base→subscriber downlink. Per FCC Public Safety Tech Topic #17, the low-power portable uplink is frequently the *binding* constraint — a unit can hear dispatch but not be heard back. The engine reuses the (reciprocal) terrain and clutter profile, so the reverse link costs almost no extra computation.
+    - **Three Contours**: When enabled, the map shows **Talk-out** (base heard), **Talk-in** (base hears the unit), and the **Reliable two-way** footprint (the binding intersection) — the contour that actually matters for two-way operations. Subscriber transmit power is 4 W (portable) / 35 W (mobile) by default; an optional base-receiver line loss (duplexer/multicoupler) can be charged to talk-in.
+    - Available from both the main RF Coverage panel and the floating Coverage Queue widget, for FCC sites and hypothetical Test Sites; included in KML export.
+  - RF Coverage — Public-Safety-Grade Methodology Overhaul (TIA TSB-88 / FCC alignment)
+    - **Critical Fix — Clutter Loss Was Never Applied**: The NLCD ground-cover (clutter) loss model required the `tifffile` library, which was never declared in `requirements.txt` or the PyInstaller spec. Every shipped build silently fell back to bare-earth (no clutter), making coverage systematically over-optimistic — exactly the failure mode the FCC warns against. `tifffile` is now a declared dependency, and each coverage plot explicitly states whether clutter was applied so the gap can never hide again.
+    - **Median + Explicit Reliability Margin**: Reworked the variability model to match TIA TSB-88 and the professional tools (EDX SignalPro, SoftWright TAP). The Longley-Rice ITM model now predicts the **median F(50,50)** field strength; coverage reliability is applied as an **explicit log-normal shadow-fade margin** (default σ = 5.6 dB at 95% area reliability, ≈9.2 dB). This replaces the deprecated practice of inflating the propagation model with ITM situation/confidence variability — which TSB-88 retired because it can mask pockets of marginal reliability.
+    - **Faded Performance Threshold**: The coverage threshold is now documented as the receiver's faded performance threshold (FPT) for the required DAQ, per TSB-88.
+    - **Configurable Reliability**: `reliability` and `shadow_sigma_db` are now parameters of the coverage API (defaults 0.95 / 5.6 dB).
+    - **Transparent Disclaimers**: Each plot's disclaimer and assumptions now state the exact methodology, σ, fade margin, reliability %, and clutter status — fully auditable.
+
+- 2026 06 12 (v260612.1700)
+  - LMR Class Filter — Trunked Radio Coverage
+    - **Trunked Base Stations (Default On)**: Added FB6 and FB8 class codes to the default LMR search filter. These cover 800 MHz and trunked public safety/industrial systems (YW, YG service codes) that were previously invisible in county and area searches — e.g., WRNT360 (Mathews County, VA).
+    - **Trunked Mobile Options**: Added MO6 and MO8 as selectable (non-default) class filters for trunked mobile units.
+    - **Fixed Station Option**: Added FX1 (permanent fixed station) as a selectable option. Distinct from FX1T (temporary fixed), this covers ~61,000 active call signs that were excluded from all non-"Any" searches.
+
 - 2026 03 31 (v260331.2030)
   - RF Coverage Model Calibration & Performance
     - **Coverage Radius Bug Fix**: Discovered and resolved a critical UI state desync issue where the floating coverage widget would silently fall back to a 30km radius if the main panel was cleared, causing artificially small "tight circle" plots for hypothetical sites. The widget now correctly prioritizes its own radius parameter.
