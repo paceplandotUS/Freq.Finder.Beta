@@ -80,15 +80,22 @@ Some aggressive antivirus configurations may quarantine `FreqFinder.exe` immedia
 2. **Restore** the file and mark it as a **trusted exception**.
 3. Alternatively, add `C:\Freq.Finder\` to your antivirus's **exclusions list** before extracting.
 
-### On macOS — "App is damaged" or "from unidentified developer"
+### On macOS — "cannot be opened" / "damaged" / "unidentified developer"
 
-macOS Gatekeeper may block the app. Open **Terminal** and run:
+macOS Gatekeeper blocks the app because it isn't notarized yet. Depending on your macOS version you'll see either an **"Open Anyway"** option or — on macOS 15 (Sequoia) and later — a dialog whose **only** buttons are **"Move to Trash"** and **"Done."** Don't move it to Trash; use one of the methods below.
+
+**Method 1 — Terminal (recommended).** The app is a *folder* of files (the executable plus many bundled libraries), and downloading quarantines **all** of them, so you must clear the whole folder recursively — not just the executable:
 
 ```bash
-xattr -dr com.apple.quarantine ~/Freq.Finder/FreqFinder/FreqFinder
+xattr -dr com.apple.quarantine /path/to/FreqFinder
 ```
 
-Then try launching again.
+Easiest way to get the path exactly right: type `xattr -dr com.apple.quarantine ` (with a trailing space), then **drag the unzipped `FreqFinder` folder from Finder into the Terminal window** to auto-fill its path, and press Enter. Then double-click the executable — it will launch.
+
+**Method 2 — System Settings (no Terminal).** After you've tried to open the app once: go to **System Settings → Privacy & Security**, scroll to the **Security** section, and click **Open Anyway** next to the *"FreqFinder was blocked"* message, then confirm.
+
+> [!NOTE]
+> For this app, **Method 1 is more reliable** — "Open Anyway" approves the main executable but can still trip on the bundled `.dylib` libraries, whereas `xattr -dr` clears the entire folder in one step.
 
 ---
 

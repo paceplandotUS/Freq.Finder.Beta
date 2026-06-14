@@ -1,5 +1,10 @@
 ## Changelog
 
+- 2026 06 13 (v260613.2115)
+  - Distribution & Docs
+    - **Auto-synced public docs.** The release workflow now pushes `CHANGELOG.md` and `WELCOME.md` to the public **Freq.Finder.Beta** repo on every release (before the release is cut), so the user-facing docs there can never drift out of date again.
+    - **Clearer macOS Gatekeeper instructions.** WELCOME now covers the macOS 15 (Sequoia) "Move to Trash / Done" block, clears quarantine on the whole app **folder** recursively (not just the executable, which left bundled libraries quarantined), and documents the System Settings → Privacy & Security "Open Anyway" path.
+
 - 2026 06 13 (v260613.2040)
   - Distribution & Build
     - **Automated cross-platform builds.** Windows and macOS desktop bundles are now built automatically on GitHub-hosted runners (`.github/workflows/build.yml`) when a `release-vYYMMDD.HHMM` tag is pushed (or via the Actions "Run workflow" button), and published as a public Release on the **Freq.Finder.Beta** repository. Replaces the manual per-platform PyInstaller-and-upload process.
