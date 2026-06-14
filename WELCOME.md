@@ -17,8 +17,9 @@
 6. [Step 6 — Working with the Map & Results](#step-6--working-with-the-map--results)
 7. [Step 7 — RF Coverage Modeling](#step-7--rf-coverage-modeling)
 8. [Step 8 — Hypothetical (Test) Sites](#step-8--hypothetical-test-sites)
-9. [Tips & Troubleshooting](#tips--troubleshooting)
-10. [Feedback](#feedback)
+9. [Step 9 — Find a Clear Channel](#step-9--find-a-clear-channel)
+10. [Tips & Troubleshooting](#tips--troubleshooting)
+11. [Feedback](#feedback)
 
 ---
 
@@ -26,14 +27,14 @@
 
 ### Find the Release on GitHub
 
-All builds are hosted in the **[Freq.Finder.Beta repository](https://github.com/paceplandotUS/Freq.Finder.Beta/tree/main)**. Look for the two `.zip` files near the top of the file list:
+All builds are published on the **[Freq.Finder.Beta Releases page](https://github.com/paceplandotUS/Freq.Finder.Beta/releases)**. The newest version is at the top — open it and look under **Assets** for the two `.zip` files:
 
 | Platform | File |
 |---|---|
-| 🪟 **Windows (64-bit)** | `Freq.Finder.Beta.XXXXXX.XXXX.Windows.zip` |
-| 🍎 **macOS (Apple Silicon / Arm64)** | `Freq.Finder.Beta.XXXXXX.XXXX.Mac(Arm64).zip` |
+| 🪟 **Windows (64-bit)** | `FreqFinder-Windows-x64.zip` |
+| 🍎 **macOS (Apple Silicon / Arm64)** | `FreqFinder-macOS.zip` |
 
-> **Don't see a download button?** Click the filename, then look for the **Download raw file** button (a downward-arrow icon) on the right side of the page.
+> **Just click the file name under Assets to download it** — no special steps needed. Each release also lists the version number and notes so you can tell what changed.
 
 ---
 
@@ -228,7 +229,7 @@ The results table below the map supports:
 
 ## Step 7 — RF Coverage Modeling
 
-Freq. Finder can estimate the RF coverage footprint of any licensed site using the **Longley-Rice Irregular Terrain Model (ITM)** — the same propagation model referenced by the FCC and TIA TSB-88.1 for public safety system design.
+Freq. Finder estimates the RF coverage footprint of any licensed site using the **public-safety-grade methodology** of TIA TSB-88 and FCC Public Safety Tech Topic #17 — the same approach used by professional tools like EDX SignalPro and SoftWright TAP. It predicts the **median** signal with the **Longley-Rice Irregular Terrain Model (ITM)**, adds ground-cover (clutter) loss, and then requires an explicit **reliability margin** (default 95% of locations) so the contour shows signal you can count on — not an optimistic average.
 
 ### Queuing Sites from the Map (Recommended)
 
@@ -242,15 +243,20 @@ This is the fastest way to get to coverage modeling:
 6. In the Coverage Queue widget, adjust settings:
    - **Max Radius (km):** How far outward to model (default 30 km — bump to 50–80 km for 800 MHz hilltop sites)
    - **Receiver Type:** "Portable (Hip)" or "Mobile (Vehicle)" — this sets the antenna height and body loss for the receiver end
-   - **Threshold (dBm):** The minimum received signal level. `-95 dBm (Good)` is a sensible default for digital P25. Use `Custom...` to type any value.
+   - **Threshold (dBm):** The receiver's **faded performance threshold** — the faded signal level needed for usable audio (DAQ-3.4). `-95 dBm (Good)` is a sensible default for digital P25. Use `Custom...` to type any value. (A 95%-reliability shadow-fade margin is added automatically on top of this.)
+   - **Reliability (area):** The TSB-88 area reliability target. `95%` is the public-safety standard; higher = more conservative contour.
+   - **Model talk-in (two-way):** Tick this to also model the subscriber → base **uplink** and the reliable **two-way** footprint — often the contour that really matters (see below).
 7. Click **"Plot Coverage"** in the widget.
 
 ### What You Get
 
 After a moment (coverage modeling is compute-intensive — allow 30–90 seconds per site), the map will show **three nested coverage contour polygons** per site:
-- **Inner (solid)** — "Strong" signal (threshold + 20 dB)
-- **Middle** — "Medium" signal (threshold + 10 dB)  
-- **Outer** — "Fringe" — the outer edge of usable coverage at your threshold
+- **Outer — "Service Edge"** — the boundary of usable coverage at your chosen reliability (default 95% of locations). This is the contour that matters for "will my radio work here?"
+- **Middle — "Medium"** — stronger signal (Service Edge + 10 dB)
+- **Inner — "Strong"** — strongest signal / most margin (Service Edge + 25 dB)
+
+> [!TIP]
+> **Talk-in / two-way:** If you ticked "Model talk-in (two-way)", you instead get three contours — **Talk-out** (where the repeater is heard), **Talk-in** (where the repeater hears the unit), and **Reliable two-way** (the binding intersection). For a low-power portable the talk-in contour is usually smaller — the dangerous ring where you hear dispatch but can't be heard back. This is the FCC's recommended way to look at public-safety coverage (PS Tech Topic #17).
 
 A **"Coverage KML"** download link appears at the top of the map section, letting you export everything to Google Earth.
 
@@ -298,6 +304,30 @@ There are two ways to create a test site:
 ### Saving and Sharing
 
 Each test site is saved locally to your computer and persists between sessions. You can also click **"Export"** on any site to save it as a `.json` file that you can share with another Freq. Finder user.
+
+---
+
+## Step 9 — Find a Clear Channel
+
+This is the question you usually have under pressure: *standing here, which channel can I actually use?* The **Find a Clear Channel** panel answers it directly — instead of looking up who interferes with one frequency, you give it a location and a pool of candidate channels, and it ranks them **cleanest → dirtiest** right there.
+
+### How to do it
+
+1. Open the **"Find a Clear Channel"** panel, click **"Set Station Location,"** then **click the map** where your station will go. A blue pin drops with a dashed **search-radius ring** around it.
+2. Set the **Search radius (km)** — how far out to hunt for interferers. This is deliberately separate from any operating area, so a distant high-power transmitter on a ridge that could still reach you isn't missed. (You can also draw a circle or polygon instead, for an area-based search.)
+3. Pick one or more **channel pools** from the **Candidate Channel Pool** list (these are the same Frequency Groups as the search form — e.g. *VHF Interop*).
+4. Set your **Technology** (Analog FM, P25, or DMR — this selects the right interference protection ratios), your **required signal level**, and optionally enter your own **FRN(s)** to exclude so your own licenses aren't counted against you.
+5. Click **"Find Clear Channel."**
+
+### What You Get
+
+A ranked table, cleanest first, with each channel marked **CLEAR** (green), **CAUTION** (yellow), or **AVOID** (red). Click **details** on any row to see the offending licensees — call sign, interference type (co-channel / adjacent / harmonic), distance and bearing, ERP, and (in Precise mode) the predicted signal level at your spot. Matching colored markers drop on the map, and a **"Clear-Channel KML"** link lets you export it all to Google Earth.
+
+> [!TIP]
+> Tick **"Precise (terrain-aware)"** for the high-confidence answer. The fast default is a conservative distance/power screen; Precise mode runs the same Longley-Rice terrain model as RF Coverage *in reverse* — so an interferer hidden behind a ridge is correctly scored as a non-threat instead of a showstopper. It's slower (it reads terrain per interferer), so use a sensible radius.
+
+> [!NOTE]
+> This is decision **support**, not a license guarantee. The protection ratios and noise model are sound planning defaults, not a full TIA TSB-88 coordination study. Always confirm a channel is clear before you transmit.
 
 ---
 
