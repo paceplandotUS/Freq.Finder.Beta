@@ -132,6 +132,9 @@ On the main page, look at the top-left area under the **Freq. Finder** heading. 
 
 At the top of the Data Maintenance page, you'll see a single blue button: **"Start Data Update"**.
 
+> [!IMPORTANT]
+> **Upgrading to v260714.1520 or later? You must run Data Update once.** This version adds support for **geographic / band licenses** (e.g. 700/800 MHz public-safety *state* licenses like Virginia's WPTZ775), which are stored in FCC data tables the older database didn't load. Until you re-run **Start Data Update**, those licenses won't appear in your results — and searching a valid call sign like WPTZ775 will return nothing. Running a fresh sync rebuilds the local database with the new tables. (Re-syncing weekly is good practice anyway — the FCC updates its data every week.)
+
 > [!CAUTION]
 > **This process can take a very long time — anywhere from 20 minutes to a few hours depending the FCC's site capacity...Frankly it's often QUITE slow.** The FCC's weekly database dump is enormous. The download log will show you exactly what's happening line by line. Let it run to completion before searching.
 
