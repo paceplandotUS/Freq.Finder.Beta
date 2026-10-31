@@ -1,18 +1,15 @@
 ## Changelog
 
 - 2026 10 31 (v261031.0920)
-  - **Search fixes moved to `main`, ported by hand from the parked NL branch.** They were
-    mixed into NL commits and called NL helpers, so `split_terms` and `singular` now live in
-    `query_builder.py`. No database rebuild is needed.
+  - **Search fixes.** No database rebuild is needed.
   - Licensee and County boxes
     - **A semicolon separates alternatives**, ORed. Commas stay literal, because 32% of the
       2.4M names in `PUBACC_EN` contain one.
     - **`*` and `%` are wildcards.** 31 names contain one of those characters literally and
       can no longer be searched by it.
     - **`_` is literal.** It was a LIKE wildcard by accident: "A_B" matched 37,333 rows.
-    - **Now the same on every path.** The NL branch left `find_market_licenses` and
-      `find_cellular_sites_by_frn` on the old single-value match, so alternatives silently
-      found nothing there. Both are fixed here, and the NL branch still needs this fix.
+    - **Now the same on every path**, including `find_market_licenses` and
+      `find_cellular_sites_by_frn`.
   - Empty results
     - **`diagnose_empty_search` names the filter that matched nothing**, scoped to the
       searched states, and offers a singular only after testing that it finds something.
@@ -21,13 +18,10 @@
   - Station-class labels
     - **The form now uses the FCC's names.** The "T" suffix means Temporary, never trunked,
       and FB6, MO6 and FX1 were mislabelled. Codes and default selections are unchanged.
-  - NL impact: none on this branch. When the NL branch returns, `nl_compile` should use the
-    `query_builder` helpers, and its schema card already carries the corrected class names.
 
 - 2026 10 31 (v261031.0916)
-  - **Security and stability foundation, moved to `main` ahead of other work.** These
-    commits were built on the natural-language branch but do not depend on it. No database
-    rebuild is needed. Existing browser sessions are signed out once.
+  - **Security and stability foundation.** No database rebuild is needed. Existing browser
+    sessions are signed out once.
   - Web security
     - **The hardcoded Flask `SECRET_KEY` is gone.** Every copy of the app shared one key,
       so a session cookie could be forged. Each install now generates its own (mode 0600;
@@ -57,9 +51,6 @@
   - Toolchain
     - **Python 3.13 in the `venv`, `Dockerfile` and CI**, with top-level requirements pinned
       to verified versions and the unused `pywebview` line dropped.
-  - NL impact: none. The natural-language layer is not on this branch; the code comments
-    that pointed at its spec were reworded, and `pydantic`, which only that layer needs, was
-    left out of the pins.
 
 - 2026 07 25 (v260725.0850)
   - **Action required — run Data Maintenance after updating.** This version corrects the column definitions for three FCC tables (`AN`, `PA`, `RA`). The corrections only take effect when the database is rebuilt, so **existing users must run Data Maintenance → Start Data Update once.** The app runs correctly against an old database in the meantime; the affected data is simply still wrong/absent until the rebuild.
