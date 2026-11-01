@@ -18,8 +18,9 @@
 7. [Step 7 — RF Coverage Modeling](#step-7--rf-coverage-modeling)
 8. [Step 8 — Hypothetical (Test) Sites](#step-8--hypothetical-test-sites)
 9. [Step 9 — Find a Clear Channel](#step-9--find-a-clear-channel)
-10. [Tips & Troubleshooting](#tips--troubleshooting)
-11. [Feedback](#feedback)
+10. [Step 10 — Radar Planning (early access)](#step-10--radar-planning-early-access)
+11. [Tips & Troubleshooting](#tips--troubleshooting)
+12. [Feedback](#feedback)
 
 ---
 
@@ -338,6 +339,25 @@ A ranked table, cleanest first, with each channel marked **CLEAR** (green), **CA
 
 > [!NOTE]
 > This is decision **support**, not a license guarantee. The protection ratios and noise model are sound planning defaults, not a full TIA TSB-88 coordination study. Always confirm a channel is clear before you transmit.
+
+---
+
+## Step 10 — Radar Planning (early access)
+
+> [!WARNING]
+> **New and bumpy.** Radar Planning is early functionality. The maths is tested, but the workflow, wording and defaults are still being shaped by real use, and every result is a planning aid, not a site survey. Please report anything confusing or wrong.
+
+A different question from the rest of the app: *if I put a drone-detection radar on this roof, what can it see, and where should the sensors go to protect these places?*
+
+### How to do it
+
+1. From the main page, open **Radar Planning →**. The page starts with three steps and a map.
+2. Press **Place a sensor**, click the map where the radar would go, type its **height above the ground** (roof plus mast), pick a **sensor model**, and press **Save and test**. In about a second the map colours every spot the sensor can see by the lowest height a drone there is spotted. Tick **Readout** and click anywhere to be told how high a drone must be to be seen there, and open **What blocks it** to see which buildings or hills cast the shadows.
+3. Mark the places you need to protect under **Protected assets** (**Add a point** or **Draw an area**), then use **Where to put a sensor** to get ranked proposals, or **Plan** to choose the best set from the sensors you placed. Tick which assets each run protects.
+4. **Lidar (Virginia):** on **Data Maintenance → Surface Model (Lidar)**, draw a box on the map, press **Check tiles**, and follow the advice it gives. A coarse fetch is a few megabytes per tile and lets the planner see real building and tree tops instead of land-cover guesses.
+
+> [!NOTE]
+> Ranges come from your sensor models: put the vendor's figure at the reference target size in the model. The app models line of sight over terrain and surface heights; it does not model a radar's detection performance.
 
 ---
 

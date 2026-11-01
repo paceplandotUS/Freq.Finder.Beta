@@ -1,5 +1,220 @@
 ## Changelog
 
+- 2026 11 01 (v261101.1458)
+  - **Radar Planning module, early access.** This release adds counter-UAS sensor siting:
+    the `/radar` page, the `radar/` package (clearance-raster engine, surface tiers, planner,
+    suggestions, exports), the lidar access layer and the Data Maintenance lidar section. The
+    dated entries below (2026 10 31 to 2026 11 01) record each step. **It is early
+    functionality and will be bumpy:** the maths is tested and deterministic, but the
+    workflow, wording and defaults are still being shaped by real use, lidar coverage depends
+    on what public data exists for an area, and every result is a planning aid, not a site
+    survey. No database rebuild is needed; terrain and land-cover tiles come from Data
+    Maintenance as before. New dependencies: `laspy`, `lazrs`.
+
+- 2026 11 01 (v261101.1442)
+  - **Radar Planning: asset selection.** `POST /api/radar/suggest` and `POST /api/radar/plan`
+    take `asset_ids` (missing = all; `[]` or unknown ids = 400 by name). The page has a "Protect
+    which assets" picker on both cards, all ticked by default with All/None, remembering what was
+    unticked so a newly marked asset joins. The Plan manifest records `params.asset_ids`.
+
+- 2026 11 01 (v261101.1428)
+  - **Radar Planning: named suggestion runs.** `POST /api/radar/suggest` takes an optional
+    `name` (whitespace-collapsed, 80 chars), defaults it to the protected assets' names, echoes
+    it as `run_name`, and labels each proposal `"<name> spot <rank>"`. Accepting a spot creates
+    a sensor of that name (a repeat gets " (2)") with the run recorded in its notes, so accepted
+    sensors no longer collide with "Suggested n" numbering.
+  - **Towers are not roofs.** `max_structure_ft` (default 400) on the suggestion request: a lidar
+    first return further above the ground than that in one cell is a broadcast tower, mast or
+    cliff, and the cell is treated as open ground. Found on Roanoke, where the best "roof" was a
+    582 ft structure.
+
+- 2026 11 01 (v261101.1411)
+  - **Lidar: the Entwine catalogue is fetched automatically** (`TileIndex.ensure_ept_projects`,
+    once and then monthly; one bucket listing plus one `ept.json` per project), from Check
+    tiles, the coarse download and online Compute coverage. Before this it was never fetched
+    unless Refresh index was pressed, so every USGS-hosted tile looked whole-file only and areas
+    with a cheap quick look (Roanoke: 277 Entwine tiles, about 415 MB) were reported as having
+    none. A catalogue failure is reported in the response (`catalogue_note`), not raised.
+  - **Entwine estimate recalibrated** from the first live run (Roanoke, 225 tiles, 0 failed,
+    2.1 GB, about 5.5 minutes): 9.5 MB per tile at the default depth, not 1.5 MB. The confirm
+    step therefore asks above about 50 Entwine tiles.
+  - **Data Maintenance says what to do.** After Check tiles: one paragraph of advice for that
+    area; the coarse line reads "not possible here" instead of "0.0 MB" when no quick-look
+    tiles exist; run buttons that cannot apply are disabled with the reason; the result is
+    written to the log; the DEM line says nothing reads the blocks yet.
+
+- 2026 11 01 (v261101.1358)
+  - **Radar Planning: imported CSVs are visible.** A notice above each "Bulk import from CSV"
+    block names the imported sites or assets and offers to remove them; CSV assets are drawn as
+    a map layer; `POST /api/radar/suggest` returns `assets_used` (id, name, source, effective
+    weight) and the page says which assets drove the proposals. Found when a leftover smoke-test
+    CSV steered suggestions to the wrong city.
+
+- 2026 10 31 (v261031.2017)
+  - **Radar Planning: "Where to put a sensor"** (`radar/suggest.py`, `POST /api/radar/suggest`).
+    Line of sight is symmetric, so a clearance raster computed from a drone's position over an
+    asset point gives, per cell, the mount height a sensor there would need. One reverse raster
+    per asset point (polygons thinned to a few points each, at most 30 in all, cached under
+    synthetic ids), summed with the asset weights wherever the available height is enough
+    (the typed height, or a lidar-measured structure top plus a mast when rooftops count; land-
+    cover class heights never promote a cell), scores every cell at once. The best cells, kept
+    apart by a spacing (greedy non-maximum suppression) and tie-broken towards the higher
+    vantage point, are tested forwards with the real model (sector models pointed at the weighted
+    asset centre) and ranked by the same greedy planner as Plan. Returns ranked proposals with
+    height, rooftop, ground, gain and cumulative coverage. Admin-gated in server mode like a
+    sensor Test. The page card lists them, draws numbered markers, and Accept creates a sensor.
+
+- 2026 10 31 (v261031.1954)
+  - **Radar Planning: Plan computes missing coverage itself.** `run_plan` computes, through the
+    shared raster cache, any site without a raster (up to `MAX_PLAN_AUTOCOMPUTE = 25`; above
+    that it points at the streamed Compute coverage), reports every site it could not compute
+    in one message, and returns `computed_now`. In `FF_MODE=server` computing new rasters from
+    Plan needs the admin token, as Test does; a plan on cached rasters stays open.
+  - **KML and KMZ for a sensor test**, built on demand by the run export route from the cached
+    raster (nothing stored; a Test stays sub-second). `exports` in the Test response lists them.
+  - **"Clear the map"** removes plan and test layers and the colour key; sensors, assets and
+    candidate markers stay; nothing on the server changes.
+  - Wording: the page says Plan chooses among the sensors you placed and does not invent
+    locations; the Compute coverage card is marked optional.
+
+- 2026 10 31 (v261031.1914)
+  - **Radar Planning: "What blocks it".** `radar/blockers.py` reads the surface around the
+    antenna the way the engine does (polar samples, footprint excluded, 1.5 km) and reports per
+    30° sector the sample with the steepest ray above the antenna (height, distance, bearing,
+    tier), the share of the sector seen at each altitude and the median lowest visible altitude
+    over its outer half, plus the antenna height that would stand above every blocker. Returned
+    as `blockers` in the sensor Test response and shown under the result on the page. No
+    rebuild; nothing on disk changes.
+
+- 2026 10 31 (v261031.1852)
+  - **Radar Planning: map-first use.** No database rebuild is needed; nothing on disk changes
+    format. A counter-UAS team member can now place a sensor by clicking the map, type its height,
+    pick a model and see what it sees, with no CSV and no coordinates.
+  - Sensors and assets on the map (`radar/sensors.py`, `radar_workspace/sensors.json`,
+    `map_assets.json`)
+    - **Sensor library:** place, drag, edit, export and import (JSON) sensors; each keeps its own
+      model, height above ground (the engine's antenna height equals the typed height) and, for
+      sector models, a pointing direction (a derived model `<model>@az<n>` per direction).
+    - **Protected assets as points or drawn areas** (leaflet.draw, served locally). CSV sites and
+      assets merge with map ones everywhere (readiness, Compute coverage, Plan, manifest); the
+      combined counts keep the existing caps.
+  - New API
+    - `/api/radar/sensors` (CRUD, export, import), `POST /api/radar/sensors/<id>/test` (one
+      sensor's coverage through the same raster cache Plan uses; about a second; returns the
+      share of its disc seen at each altitude, surface tiers and map layers; in server mode a
+      new computation needs the admin token, a cached one does not), `GET /api/radar/probe`
+      (what the tested sensors see at a point), `/api/radar/map-assets`,
+      `GET /api/radar/templates/<name>` (CSV and JSON templates with the columns explained in
+      `#` lines above the header; the parsers now skip such lines there).
+    - `/api/radar/lidar/tiles` reports each tile's kind and whether it is derived.
+  - Page
+    - A three-step "Start here" strip, the map first, then Sensors, Sensor models, Protected
+      assets, Area multipliers, Compute coverage, Plan, Results, Exports. "Prepare" is "Compute
+      coverage", presets are "sensor models", and the colour key says "Lowest altitude above
+      ground at which a drone is visible".
+    - Readout mode: click the map for a plain-language answer built from the cached rasters.
+    - "Fetch lidar within 1 to 5 km" per sensor, with the same estimate-and-confirm flow.
+    - Keyboard path for placing a pin (map focus, arrow keys, Enter); every control labelled.
+  - Data Maintenance: a map in the lidar section with a rectangle tool that fills the
+    coordinate boxes, "Around my sensors", and the checked tiles drawn by kind (solid, dashed,
+    dotted outlines; filled when derived).
+  - Test runs are kept separately from plan runs (newest per sensor; 100 at most), so a burst of
+    tests cannot delete the plan on screen.
+
+- 2026 10 31 (v261031.1544)
+  - **Radar Planning: lidar surface tiers.** No database rebuild is needed. Coverage rasters
+    prepared on the previous build are recomputed once (the cache key now includes the lidar
+    layers). Download SRTM terrain for an area before deriving lidar there: every derived tile
+    is checked against it.
+  - Lidar access (`radar/lidar.py`, the only radar module on the network)
+    - **VGIN tile index** (public ArcGIS REST) cached in `terrain_data/lidar_index.json` with
+      the tile polygons, the USGS 1 m DEM block list and the Entwine project list.
+    - **Three readers, one output.** NOAA COPC tiles are read coarsely with HTTP range
+      requests (levels 0–1, about 4 MB and 3 requests per tile; within 0.23 m of the full
+      tile at p90); USGS projects on the public Entwine bucket are read node by node with a
+      shared cache; anything else is a whole-tile download, sequential and backoff-paced
+      because the USGS web host rate-limits. Output is one derived tile on the engine's own
+      lattice (`radar/derived.py`): highest first return, median ground return, first-return
+      count and per-cell coverage, written byte-identically with the source URL, ETag, level,
+      project year and CRS.
+    - **CRS without pyproj:** WKT and GeoTIFF-key parsing for UTM, State Plane (Lambert
+      Conformal Conic, US survey feet) and Web Mercator; a feet CRS with no declared vertical
+      unit is refused by name, never guessed.
+    - **Safety:** a per-host allowlist, https-only index links, one `requests.Session` with a
+      User-Agent, timeouts, `Retry-After` and at most five tries; a 20 m SRTM tolerance that
+      fails a NAD83-ellipsoid-for-NAVD88 mix-up; sanitised file names.
+  - Surface model (`radar/surface.py`)
+    - **Tiers 4 and 5** (coarse and full lidar) above land cover: per cell the best data wins,
+      lidar ground replaces SRTM where a ground return exists, and a cell on a tile edge counts
+      as lidar only when the tiles covering it add up to the whole cell. Readiness reports the
+      fraction of each site's disc at each tier and the lidar tiles it overlaps.
+  - Data Maintenance and the radar page
+    - **"Surface Model (Lidar) for Radar Planning"** section: an area (or the union of the
+      radar sites' discs), Check tiles with a transfer estimate, Refresh index, and three
+      streamed runs: coarse surface, full tiles to a 2 m DSM GeoTIFF (`terrain_data/surface/`),
+      and 1 m DEM blocks (`terrain_data/dem_1m/`, kept for future use). Caps per run: 0.25°
+      coarse, 0.1° full, 0.25° DEM; an estimate above 500 MB asks before fetching.
+    - **Prepare's "Online" policy** fetches the coarse surface for each site's disc as it
+      runs, estimating first and asking above the same threshold; a failed tile is reported
+      and the site computes on what is on disk. The policy is recorded and the run manifest
+      lists every derived tile a plan used, with its ETag.
+    - New API: `GET /api/radar/lidar/status`, `POST /api/radar/lidar/tiles` (admin-gated),
+      `GET /api/radar/lidar/download?mode=coarse|full|dem` (SSE, admin-gated); the index,
+      Check tiles and DEM downloads work without `laspy`/`lazrs` installed.
+  - Packaging: `laspy==2.7.0` and `lazrs==0.8.2` added to `requirements.txt` and the
+    PyInstaller hidden imports.
+  - Known limits: Entwine reads and whole-tile preloads are tested offline only (COPC was
+    measured live); water cells in a derived tile carry bridge and bank heights.
+
+- 2026 10 31 (v261031.1425)
+  - **Radar Planning module (counter-UAS sensor siting), phase 1.** New page at `/radar`,
+    package `radar/`, API under `/api/radar/*`. No database rebuild is needed. It uses the
+    same SRTM terrain and NLCD land-cover tiles as RF Coverage, fetched from Data
+    Maintenance; "Check data readiness" lists what each site still needs.
+  - Engine (`radar/viewshed.py`)
+    - **One clearance raster per site and preset** on the SRTM 1-arc-second lattice: the
+      minimum and maximum altitude above ground (feet, uint16) at which a target is in
+      line of sight of the sensor. Polar sweep with 4/3-earth curvature, running maximum
+      slope, azimuth sector and elevation-cone masks, a 45 m footprint exclusion, and the
+      preset's rated range as the outer limit.
+    - **Surface = terrain + land-cover class heights** by default (tiers: bare, land cover,
+      buildings, coarse lidar, full lidar; the lidar tiers are stubbed, not wired).
+      A ray that crosses a no-data cell is blocked beyond it, so missing tiles reduce
+      coverage rather than inflate it (`ALGORITHM_VERSION` 2).
+    - Rasters are cached under `radar_workspace/` keyed on the content hash of every input
+      and the algorithm version, and serialise byte-identically (fixed zip timestamps).
+  - Planner (`radar/scoring.py`, `radar/optimizer.py`)
+    - Protected assets (points or WKT polygons) are sampled on the lattice into a dense
+      coverage matrix; weights blend across the analysis altitudes, with a redundancy
+      bonus for tier-1 assets. Region multipliers scale weights per region.
+    - **Nested greedy maximum-coverage** with locked and excluded sites, per-region
+      minimums and maximums, minimum spacing and keep-out; ties break on the lowest site
+      id so a plan is reproducible. Optional exact ILP via `pulp` when installed (not a
+      declared dependency). Marginal-value curve and a deterministic robustness sweep
+      (every region's multiplier ±20%, then all together).
+  - Inputs and outputs (`radar/inputs.py`, `radar/exports.py`)
+    - CSV imports for candidate sites, assets and multipliers with row-level issue
+      reports; editable preset JSON with four seed presets (X-band 360°, X-band sector,
+      Ku-band panel, passive RF).
+    - Exports: plan CSV, asset-coverage CSV (both formula-injection escaped), KML and KMZ
+      with coverage polygons and holes, a 3-D KML of altitude slices, a pure-Python PNG
+      overlay, and a run manifest carrying the sha256 of every input and the surface
+      version of every raster. The last 50 runs are kept.
+  - Web (`radar/routes.py`, `templates/radar.html`, `static/js/radar.js`)
+    - Prepare streams progress over SSE and is admin-gated in server mode, like the other
+      downloads. Plan is a synchronous POST. `MAX_CONTENT_LENGTH` is now set app-wide
+      (10 MB). Every state-changing route is CSRF-protected; the security-baseline tests
+      cover the new routes.
+    - The page is keyboard-navigable, labels every control, announces progress through
+      live regions and works at phone width.
+  - Workspace: `radar_workspace/` (directories 02775, files 0664 so two local accounts can
+    share a checkout), gitignored and dockerignored. Design notes in `RADAR_MODULE_PLAN.md`,
+    the module contract in `RADAR_MODULE_SPEC.md`.
+  - Known limits: the KML export grows with speckled canopy coverage (6 MB for two sensors)
+    and Plan runs synchronously, so twenty-sensor plans are slow; the cone ceiling is
+    evaluated at the range-bin centre; the map's base tiles come from OpenStreetMap, the
+    page's only network resource.
+
 - 2026 10 31 (v261031.0920)
   - **Search fixes.** No database rebuild is needed.
   - Licensee and County boxes
