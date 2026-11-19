@@ -147,7 +147,7 @@ At the top of the Data Maintenance page, you'll see a single blue button: **"Sta
 
 ---
 
-### Part B: Terrain Data (SRTM Elevation Tiles)
+### Part B: Terrain Data (Elevation Tiles)
 
 Terrain data is what makes the **RF coverage modeling** feature accurate. Without it, coverage estimates fall back to simple circles (free-space path loss). With terrain data, the model traces every hill, ridge, and valley.
 
@@ -354,7 +354,7 @@ A different question from the rest of the app: *if I put a drone-detection radar
 1. From the main page, open **Radar Planning →**. The page starts with three steps and a map.
 2. Press **Place a sensor**, click the map where the radar would go, type its **height above the ground** (roof plus mast), pick a **sensor model**, and press **Save and test**. In about a second the map colours every spot the sensor can see by the lowest height a drone there is spotted. Tick **Readout** and click anywhere to be told how high a drone must be to be seen there, and open **What blocks it** to see which buildings or hills cast the shadows.
 3. Mark the places you need to protect under **Protected assets** (**Add a point** or **Draw an area**), then use **Where to put a sensor** to get ranked proposals, or **Plan** to choose the best set from the sensors you placed. Tick which assets each run protects.
-4. **Lidar (Virginia):** on **Data Maintenance → Surface Model (Lidar)**, draw a box on the map, press **Check tiles**, and follow the advice it gives. A coarse fetch is a few megabytes per tile and lets the planner see real building and tree tops instead of land-cover guesses.
+4. **Lidar (Virginia):** each sensor on the radar page says whether it has lidar; press **Get lidar** in its row (or **Get lidar for these sensors**). Data Maintenance → **Lidar for Radar Planning** shows everything you have on a map and gets more for any area you draw. With lidar, the planner sees real building and tree tops instead of land-cover guesses.
 
 > [!NOTE]
 > Ranges come from your sensor models: put the vendor's figure at the reference target size in the model. The app models line of sight over terrain and surface heights; it does not model a radar's detection performance.

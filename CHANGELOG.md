@@ -1,5 +1,97 @@
 ## Changelog
 
+- 2026 11 19 (v261119.1605)
+  - **Readout follows the layers on the map** (`static/js/radar.js` `readoutLines`). `/probe`
+    reports the minimum over every tested sensor, but each sensor test is its own image overlay
+    and Leaflet draws the last one added on top, so where circles overlapped the colour and the
+    readout described different sensors (a 400+ ft yellow spot read "seen from 71 ft"). The
+    page now scopes the readout to the sensors with a test layer switched on: one shown is
+    described alone (plus one line if a hidden sensor sees the spot); several shown are compared,
+    with the lowest among them and whose colour is on top (layers carry a `seq` set when they are
+    added to the map). With none shown it falls back to all tested sensors, counting out-of-range
+    and untested ones instead of a line each. A view ceiling above 1,000 ft is no longer quoted.
+    `/probe` is unchanged.
+  - **100 ft in the default altitudes.** `DEFAULT_ALTITUDES_FT` and the Plan card's default are
+    50, 100, 200, 400, so a sensor test has a "seen at 100 ft" layer. A blank Scoring altitude now
+    takes the upper middle of the list (`altitudes[len // 2]`), so the new defaults still score at
+    200 ft; for an odd-length list nothing changes, and "What blocks it" uses the same choice.
+
+- 2026 11 19 (v261119.1500)
+  - **Lidar downloads run as a background job** (spec §24). A download used to live inside the
+    page's event stream: a refresh closed the stream, the server carried on with nobody
+    watching, the new page could only report "another download is running", and the run then
+    ended silently at its next progress line. Downloads now run on a server thread
+    (`radar/lidar_job.py`) under the same one-at-a-time lock, and any page can watch or stop
+    them. Getting lidar for a large area, or for every sensor, is one job of several boxes
+    run by the server, not a chain of requests kept alive by the page.
+  - **Endpoints.** `POST /api/radar/lidar/job/start` (`{mode, boxes, label, confirm}`, 202, or
+    409 with the running job), `GET /api/radar/lidar/job` (progress: files, bytes, measured
+    speed, time left, log, summary; not admin-gated) and `POST /api/radar/lidar/job/stop`. The
+    SSE route `GET /api/radar/lidar/download` is removed; its size caps, the confirmation above
+    500 MB, per-tile failure reporting and the cleanup of `lidar_tmp/` carry over unchanged.
+  - **Progress inside a file.** `lidar.download_tile` and `download_dem_blocks` report bytes
+    per chunk and take a `cancel` event; `ensure_coarse` marks unstarted tiles `cancelled`.
+    Stop abandons the file in progress (no temp file is left) and keeps every finished tile.
+  - **Pages.** One shared panel (`static/js/lidar_job.js`, `static/css/lidar_job.css`) on Data
+    Maintenance and above the radar page's sensor list: file N of M, bytes of the current
+    file, total so far, speed in MB/s and Mbit/s, time left, a plain note when nothing has
+    arrived for a minute, and Stop. Time estimates before a download use the last measured
+    speed for that kind of download (`radar_workspace/lidar_speed.json`, via `/lidar/status`).
+  - **Fixes a race.** When the page left during a coarse download, the old route released the
+    lock while its worker thread was still fetching, so a second download could start beside it.
+    A job now holds the lock until its thread ends.
+
+- 2026 11 19 (v261119.1215)
+  - **Lidar made plain (radar planning).** The lidar screens now answer three questions in
+    plain words: what you have, what each sensor needs, and how to get it (design:
+    `RADAR_MODULE_PLAN.md` Part 12; contract: spec §23).
+  - **Data Maintenance, "Lidar for Radar Planning".** On load, one sentence summarises the
+    lidar on disk, and the map shows ready tiles (filled green), fetchable tiles (amber outline)
+    and large-file-only tiles (grey dotted). A list of areas follows, named after a sensor,
+    asset or site inside each, with size, Show and Remove. Choosing an area (draw, Around my
+    sensors, or typed edges) checks it at once and says what is there, with size and a rough
+    time. **Get lidar for this area** is the one primary action: a box larger than one run's
+    0.25° cap is split into pieces after one confirmation for the whole area. Detailed (full)
+    tiles and typed edges move under More options; counts, index refresh and the log move under
+    Technical details. The 1 m DEM button is removed from the page (nothing reads those blocks);
+    `mode=dem` stays in the API.
+  - **Radar page.** Each sensor shows a lidar label for its chosen distance (ready, partly
+    ready, quick to download, large files only, none published, not checked yet) and a **Get lidar**
+    button when there is something to get. A summary above the list offers **Get lidar for these
+    sensors**, which fetches around each sensor in turn. Compute coverage's Offline/Online
+    select becomes one checkbox.
+  - **New endpoints** (disk only, no network): `GET /api/radar/lidar/coverage`,
+    `POST /api/radar/lidar/near`, and `POST /api/radar/lidar/remove` (admin-gated in server
+    mode; refused while a download runs). New module `radar/lidar_areas.py` groups derived tiles
+    into areas.
+  - **Lidar height check fix.** A lidar tile with no classified ground returns was checked by
+    its median surface height against bare-earth terrain, which refuses good forested tiles. On
+    398 real tiles this approach would have refused 109. It now compares cell by cell and uses
+    the 5th percentile of the differences, which finds the ground in canopy gaps (1 of 398
+    beyond the 20 m tolerance) and still catches datum and feet/metre mistakes. Tiles already on
+    disk are unaffected.
+  - No database or terrain rebuild needed.
+
+- 2026 11 19 (v261119.1100)
+  - **Terrain source described correctly.** The terrain tiles were documented as NASA SRTM
+    (Shuttle Radar Topography Mission, Version 3). They are SRTM-*format* `.hgt` tiles on the
+    1-arc-second grid, from the Tilezen Terrain Tiles "skadi" set on AWS Open Data. Inside the
+    US their heights are USGS 3DEP bare-earth elevation, not radar measurements. A check at
+    50 points in central Virginia showed this: the tiles match USGS's own 3DEP elevation
+    service within centimetres in open land and under forest. A radar-derived model
+    (Copernicus GLO-30) reads about 9 m higher over the same forest.
+  - Corrected: the in-app guide's Terrain Data section and Data Maintenance intro, the
+    coverage disclaimer in plot popups and exports (now "bare-earth terrain (USGS 3DEP,
+    1 arc-second)"), the radar sites CSV template help for `dem_includes_structure`, code
+    comments in `terrain_manager`, `coverage_engine` and `radar/`, and the radar design
+    documents (§2.3, the risks list and spec §19.1, each with a dated correction note).
+  - **No change to results.** Coverage and radar computations are unchanged. The models
+    already treated the terrain as bare ground, and the land-cover and lidar layers add trees
+    and buildings on top of it, so nothing was double-counted.
+  - **Removed the unused `python-srtm` dependency** from `requirements.txt` and the PyInstaller
+    hidden imports. It was never imported; `terrain_manager` reads the `.hgt` files directly.
+  - No database or terrain rebuild needed.
+
 - 2026 11 01 (v261101.1458)
   - **Radar Planning module, early access.** This release adds counter-UAS sensor siting:
     the `/radar` page, the `radar/` package (clearance-raster engine, surface tiers, planner,
